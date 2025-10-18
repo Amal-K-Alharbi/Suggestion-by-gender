@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>مرشدك الذكي للتسوق</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    h1 {
+      position: absolute;
+      top: 15px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: 300;
+      color: #f8f8f6;
+      margin: 0;
+    }
+
+    #logo {
+      position: absolute;
+      top: 12px;
+      right: 80px;
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      object-fit: contain;
+    }
+
+    #label {
+      font-size: 1.2rem;
+      font-weight: 300;
+      text-align: center;
+      position: absolute;
+      bottom: 60px;
+      color: #aaa;
+    }
+
+    #suggestions {
+      width: 250px;
+      height: 500px;
+      margin-top: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .suggestion {
+      width: 90%;
+      height: 240px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      transition: transform 0.3s ease;
+    }
+
+    .suggestion img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .suggestion:hover {
+      transform: scale(1.03);
+    }
+
+    #audioNote {
+      position: absolute;
+      bottom: 20px;
+      text-align: center;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <img id="logo" src="logo.jpg" alt="شعار الشركة">
+  <h1>مرشدك الذكي للتسوق</h1>
+  <div id="suggestions"></div>
+  <div id="label">جارٍ التحميل...</div>
+  <div id="audioNote">سيتم تشغيل صوت الترحيب بعد التعرف</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const MODEL_URL = "model.json"; // نموذج الموديل مباشرة في نفس المجلد
+    const METADATA_URL = "metadata.json"; // نفس المجلد
+    const audioFiles = {
+      male: "male.mp3",
+      female: "female.mp3"
+    };
+
+    const suggestedImages = {
+      male: [
+        "maleplaces1.jpg",
+        "maleplaces2.jpg"
+      ],
+      female: [
+        "femaleplaces1.jpg",
+        "femaleplaces2.jpg"
+      ]
+    };
+
+    let model, webcam;
+    let lastCategory = null;
+    const label = document.getElementById("label");
+    const suggestionsDiv = document.getElementById("suggestions");
+
+    async function init() {
+      model = await tmImage.load(MODEL_URL, METADATA_URL);
+      webcam = new tmImage.Webcam(224, 224, true);
+      await webcam.setup();
+      await webcam.play();
+
+      label.textContent = "النظام جاهز...";
+      window.requestAnimationFrame(loop);
+    }
+
+    async function loop() {
+      await webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const predictions = await model.predict(webcam.canvas);
+      const top = predictions.reduce((a, b) => (a.probability > b.probability ? a : b));
+
+      let category = null;
+      if (top.className.toLowerCase().includes("female") || top.className.includes("أنثى")) {
+        category = "female";
+      } else if (top.className.toLowerCase().includes("male") || top.className.includes("ذكر")) {
+        category = "male";
+      }
+
+      if (category && category !== lastCategory) {
+        lastCategory = category;
+        showResult(category);
+        playSound(category);
+        showSuggestions(category);
+      }
+    }
+
+    function showResult(category) {
+      label.textContent = category === "female" ? "أنثى 👩" : "ذكر 👨";
+    }
+
+    function showSuggestions(category) {
+      suggestionsDiv.innerHTML = "";
+      suggestedImages[category].forEach(path => {
+        const div = document.createElement("div");
+        div.className = "suggestion";
+        const img = document.createElement("img");
+        img.src = path;
+        div.appendChild(img);
+        suggestionsDiv.appendChild(div);
+      });
+    }
+
+    function playSound(category) {
+      const audioPath = audioFiles[category];
+      if (!audioPath) return;
+      try {
+        const audio = new Audio(audioPath);
+        audio.play().catch(err => console.warn("لم يمكن تشغيل الصوت تلقائيًا:", err));
+      } catch (err) {
+        console.error("خطأ في تشغيل الصوت:", err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
