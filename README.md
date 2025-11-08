@@ -1,0 +1,1 @@
+This project is based on a machine learning model created in Teachable Machine. The model recognizes people with an Arab appearance, such as women in abayas and men in thobes. After recognizing them, it suggests suitable locations for them in the area.
